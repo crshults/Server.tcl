@@ -1,4 +1,4 @@
-package provide server 0.0.12
+package provide server 0.0.13
 
 package require TclOO
 package require system_information
@@ -29,31 +29,29 @@ oo::class create server {
 
     method accept_connection {client_channel address port} {
         lappend _clients $client_channel
-        chan configure $client_channel -blocking no -buffering none -encoding iso8859-1 -translation binary
+        chan configure $client_channel -blocking no -buffering line -encoding iso8859-1 -translation binary
         chan event $client_channel readable [list [self] read_data $client_channel]
     }
 
     method read_data {client_channel} {
-        set message [chan read $client_channel]
+        set message [chan gets $client_channel]
         if {[chan eof $client_channel]} {
             chan close $client_channel
             set _clients [lsearch -inline -all -not -exact $_clients $client_channel]
         } else {
+			if {[string length $message]} {
             catch {$_received_callback $client_channel $message}
         }
     }
+    }
 
-    method broadcast {message {newline no}} {
+    method broadcast {message} {
         foreach client $_clients {
-            my send $client $message $newline
+            my send $client $message
         }
     }
 
-    method send {client message {newline no}} {
-        if {$newline == no} {
-            catch {chan puts -nonewline $client $message}
-        } else {
-            catch {chan puts $client $message}
-        }
+    method send {client message} {
+        catch {chan puts $client $message}
     }
 }
